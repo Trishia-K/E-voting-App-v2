@@ -1,6 +1,5 @@
-from datetime import date, datetime
+from datetime import date
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -21,6 +20,10 @@ class UserSerializer(serializers.ModelSerializer):
             "password",
         ]
         read_only_fields = ["id", "date_joined"]
+        #Changed this so that the password is not returned in API responses
+        extra_kwargs = {
+            "password": {"write_only": True}
+        }
 
     def get_full_name(self, obj):
         return obj.first_name + " " + obj.last_name
@@ -69,11 +72,10 @@ class VoterRegistrationSerializer(serializers.Serializer):
 
     def validate_date_of_birth(self, value):
         today = date.today()
-        age = today.year - value.year
+        # accounts for birthday not yet passed this year
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
         if age < 18:
-            raise serializers.ValidationError(
-                "You must be at least 18 years old."
-            )
+            raise serializers.ValidationError("You must be at least 18 years old.")
         return value
 
     def validate_station_id(self, value):
@@ -82,8 +84,9 @@ class VoterRegistrationSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        #Error should be specific so that the user knows exactly what is wrong
         if data["password"] != data["confirm_password"]:
-            raise serializers.ValidationError("Passwords do not match.")
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
         return data
 
 
@@ -91,12 +94,12 @@ class AdminCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     full_name = serializers.CharField(max_length=200)
     email = serializers.EmailField()
+    #Removed User.Role.VOTER because admins do not vote so they should not be able to create voter accounts
     role = serializers.ChoiceField(choices=[
         User.Role.SUPER_ADMIN,
         User.Role.ELECTION_OFFICER,
         User.Role.STATION_MANAGER,
         User.Role.AUDITOR,
-        User.Role.VOTER,
     ])
     password = serializers.CharField(min_length=6, write_only=True)
 

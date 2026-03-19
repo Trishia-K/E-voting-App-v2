@@ -111,8 +111,16 @@ class VoterProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = VoterProfileSerializer(request.user.voter_profile)
-        return Response(serializer.data)
+        # If a user has no profile then a 404 error is returned
+        
+        try:
+            serializer = VoterProfileSerializer(request.user.voter_profile)
+            return Response(serializer.data)
+        except Exception:
+            return Response(
+                {"detail": "Voter profile not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 class ChangePasswordView(APIView):
@@ -148,8 +156,13 @@ class VoterVerifyView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request, pk):
+        # Added error handling incase a voter is not found
+        
         service = VoterManagementService()
-        service.verify(pk, request.user)
+        try:
+            service.verify(pk, request.user)
+        except User.DoesNotExist:
+            return Response({"detail": "Voter not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response({"detail": "Voter verified successfully."})
 
 
@@ -211,6 +224,11 @@ class AdminDeactivateView(APIView):
                 {"detail": "Cannot deactivate your own account."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Added error handling so that when an admin is not found it shows the error instead of crashing
+        
         service = AdminManagementService()
-        service.deactivate(pk, request.user)
+        try:
+            service.deactivate(pk, request.user)
+        except User.DoesNotExist:
+            return Response({"detail": "Admin not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response({"detail": "Admin deactivated."})

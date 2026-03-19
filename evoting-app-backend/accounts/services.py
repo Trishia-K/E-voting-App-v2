@@ -65,6 +65,9 @@ class VoterRegistrationService:
     def __init__(self):
         self._audit = AuditService()
 
+    #wrap in @transaction.atomic so that if VoterProfile creation fails, the user is removed
+    
+    @transaction.atomic
     def register(self, validated_data):
         names = validated_data["full_name"].split(" ", 1)
         station = VotingStation.objects.get(pk=validated_data["station_id"])
@@ -149,7 +152,9 @@ class VoterManagementService:
         return user
 
     def verify_all_pending(self, verified_by):
-        unverified = User.objects.filter(is_verified=False)
+        # Filter by role=VOTER 
+       
+        unverified = User.objects.filter(is_verified=False, role=User.Role.VOTER)
         count = unverified.update(is_verified=True)
         self._audit.log(
             "VERIFY_ALL_VOTERS",
