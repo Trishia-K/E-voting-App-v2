@@ -1,5 +1,5 @@
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -72,8 +72,15 @@ class CandidateDeactivateView(APIView):
 
 
 class VotingStationListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAdminOrReadOnlyVoter]
     queryset = VotingStation.objects.all()
+
+    def get_permissions(self):
+        # GET is fully public so the voter registration form can load
+        # the stations dropdown without needing to be logged in
+        # POST still requires admin login to create new stations
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
